@@ -8,6 +8,9 @@ jobs:
   build:
     name: Compilar e gerar APK
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./aplicativo
 
     steps:
       - name: Baixar código
@@ -29,4 +32,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: App-Prontinho
-          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          path: aplicativo/build/outputs/apk/release/app-release-unsigned.apk
