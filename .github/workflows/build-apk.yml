@@ -1,0 +1,32 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ "main", "principal" ]
+
+jobs:
+  build:
+    name: Compilar e gerar APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Dar permissão de execução
+        run: chmod +x gradlew
+
+      - name: Compilar o app
+        run: ./gradlew assembleRelease
+
+      - name: Salvar APK pronto
+        uses: actions/upload-artifact@v4
+        with:
+          name: App-Prontinho
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
