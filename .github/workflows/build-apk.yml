@@ -2,15 +2,12 @@ name: Gerar APK Automaticamente
 
 on:
   push:
-    branches: [ principal ]
+    branches: [ main ]
 
 jobs:
   build:
     name: Compilar e gerar APK
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./aplicativo
 
     steps:
       - name: Baixar código
@@ -22,13 +19,20 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Dar permissão ao gradlew
-        run: chmod +x gradlew
+      - name: Ver arquivos
+        run: ls -la
 
-      - name: Compilar com Gradle
-        run: ./gradlew assembleRelease
+      - name: Entrar na pasta e dar permissão
+        run: |
+          cd aplicativo
+          chmod +x gradlew
 
-      - name: Disponibilizar APK para download
+      - name: Compilar APK
+        run: |
+          cd aplicativo
+          ./gradlew assembleRelease
+
+      - name: Salvar APK pronto
         uses: actions/upload-artifact@v4
         with:
           name: App-Psicologia-Estuda
