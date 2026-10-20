@@ -19,21 +19,14 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Ver arquivos
-        run: ls -la
-
-      - name: Entrar na pasta e dar permissão
-        run: |
-          cd aplicativo
-          chmod +x gradlew
+      - name: Dar permissão ao gradlew
+        run: chmod +x gradlew
 
       - name: Compilar APK
-        run: |
-          cd aplicativo
-          ./gradlew assembleRelease
+        run: ./gradlew assembleRelease
 
       - name: Salvar APK pronto
         uses: actions/upload-artifact@v4
         with:
           name: App-Psicologia-Estuda
-          path: aplicativo/build/outputs/apk/release/app-release-unsigned.apk
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
