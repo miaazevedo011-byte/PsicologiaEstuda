@@ -334,7 +334,6 @@ fun ClinicalCasesDialog(
                             }
                         }
                     }
-                }
 
                 // Footer Pagination Controls (Anterior / Próximo)
                 Row(
@@ -373,6 +372,71 @@ fun ClinicalCasesDialog(
                         Text("Próximo Caso", fontSize = 11.sp)
                         Spacer(modifier = Modifier.width(4.dp))
                         Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(16.dp))
+                    }
+                }
+            } else {
+                Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = SurfaceContainerLow)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(CircleShape)
+                                        .background(SageSecondaryContainer),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.MedicalServices,
+                                        contentDescription = null,
+                                        tint = PinePrimary,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                }
+                                Text(
+                                    text = "Nenhum caso clínico ainda",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = PinePrimary
+                                    )
+                                )
+                                Text(
+                                    text = "Os casos clínicos são desenvolvidos dinamicamente a partir dos arquivos e textos anexados na aba Biblioteca. Cada material gera exercícios práticos e vinhetas com diagnóstico DSM-5-TR.",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = TextOnSurfaceVariant,
+                                        lineHeight = 18.sp
+                                    ),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                if (availableMaterials.isNotEmpty()) {
+                                    Button(
+                                        onClick = { isGenerateDialogShown = true },
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = PinePrimary)
+                                    ) {
+                                        Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Gerar de Material Existente")
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

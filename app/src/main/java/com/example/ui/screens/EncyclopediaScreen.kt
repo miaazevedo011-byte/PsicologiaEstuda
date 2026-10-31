@@ -35,7 +35,9 @@ fun EncyclopediaScreen(
     onPlayVerbeteAudio: (Verbete) -> Unit,
     onCreateNoteForVerbete: (Verbete) -> Unit,
     onToggleBookmark: (String) -> Unit,
-    onAuthorClick: (Author) -> Unit = {}
+    onAuthorClick: (Author) -> Unit = {},
+    activeItemId: String? = null,
+    isSpeaking: Boolean = false
 ) {
     var selectedFilter by remember { mutableStateOf("Todos") }
     var searchQuery by remember { mutableStateOf("") }
@@ -231,8 +233,10 @@ fun EncyclopediaScreen(
 
             // Verbetes Cards
             items(filteredVerbetes) { verbete ->
+                val isPlaying = isSpeaking && activeItemId == verbete.id
                 VerbeteCard(
                     verbete = verbete,
+                    isPlaying = isPlaying,
                     onPlayAudio = { onPlayVerbeteAudio(verbete) },
                     onCreateNote = { onCreateNoteForVerbete(verbete) },
                     onToggleBookmark = { onToggleBookmark(verbete.id) }
@@ -367,6 +371,7 @@ private fun AuthorCard(
 @Composable
 private fun VerbeteCard(
     verbete: Verbete,
+    isPlaying: Boolean = false,
     onPlayAudio: () -> Unit,
     onCreateNote: () -> Unit,
     onToggleBookmark: () -> Unit
@@ -498,14 +503,27 @@ private fun VerbeteCard(
             ) {
                 Button(
                     onClick = onPlayAudio,
-                    colors = ButtonDefaults.buttonColors(containerColor = PinePrimary),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isPlaying) PeachTertiary else PinePrimary,
+                        contentColor = if (isPlaying) OnPeachTertiary else OnPinePrimary
+                    ),
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("play_verbete_${verbete.id}")
                 ) {
-                    Icon(Icons.Default.PlayCircle, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Stop else Icons.Default.PlayCircle,
+                        contentDescription = if (isPlaying) "Parar leitura" else "Ouvir artigo",
+                        modifier = Modifier.size(16.dp)
+                    )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Ouvir Áudio (${verbete.audioDuration})", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = if (isPlaying) "Parar Leitura" else "Ouvir Artigo (${verbete.audioDuration})",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
 
                 FilledTonalButton(

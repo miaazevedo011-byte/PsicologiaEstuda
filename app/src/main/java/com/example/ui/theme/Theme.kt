@@ -4,7 +4,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import com.example.model.AppFontStyle
 
 private val PsicoLightColorScheme = lightColorScheme(
     primary = PinePrimary,
@@ -71,12 +70,11 @@ private val PsicoDarkColorScheme = darkColorScheme(
 @Composable
 fun MyApplicationTheme(
     darkTheme: Boolean = false,
-    fontStyle: AppFontStyle = AppFontStyle.DEFAULT,
     fontScale: Float = 1.0f,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) PsicoDarkColorScheme else PsicoLightColorScheme
-    val typography = getAppTypography(fontStyle, fontScale)
+    val typography = getAppTypography(fontScale)
 
     MaterialTheme(
         colorScheme = colorScheme,

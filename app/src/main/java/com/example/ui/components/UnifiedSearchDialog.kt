@@ -35,13 +35,11 @@ fun UnifiedSearchDialog(
     disciplines: List<Discipline>,
     flashcards: List<Flashcard>,
     notes: List<Note>,
-    audios: List<PodcastAudio>,
     materials: List<StudyMaterial>,
     authors: List<Author> = emptyList(),
     onSelectVerbete: (Verbete) -> Unit,
     onSelectDiscipline: (Discipline) -> Unit,
     onSelectFlashcard: (Flashcard) -> Unit,
-    onSelectAudio: (PodcastAudio) -> Unit,
     onSelectAuthor: (Author) -> Unit = {}
 ) {
     if (!isOpen) return
@@ -66,11 +64,6 @@ fun UnifiedSearchDialog(
     val filteredNotes = remember(cleanQuery, notes) {
         if (cleanQuery.isEmpty()) notes.take(1)
         else notes.filter { it.title.lowercase().contains(cleanQuery) || it.content.lowercase().contains(cleanQuery) }
-    }
-
-    val filteredAudios = remember(cleanQuery, audios) {
-        if (cleanQuery.isEmpty()) audios.take(2)
-        else audios.filter { it.episodeTitle.lowercase().contains(cleanQuery) || it.speakerAndDiscipline.lowercase().contains(cleanQuery) }
     }
 
     val filteredMaterials = remember(cleanQuery, materials) {
@@ -250,25 +243,6 @@ fun UnifiedSearchDialog(
                                 containerColor = AmberFlashcardBg.copy(alpha = 0.5f),
                                 onClick = {
                                     onSelectFlashcard(card)
-                                    onDismiss()
-                                }
-                            )
-                        }
-                    }
-
-                    // Audios / Podcasts Results
-                    if (filteredAudios.isNotEmpty()) {
-                        item {
-                            CategorySectionHeader("PODCASTS & SÍNTESES EM ÁUDIO", Icons.Default.Headphones)
-                        }
-                        items(filteredAudios) { audio ->
-                            SearchResultItem(
-                                title = audio.episodeTitle,
-                                subtitle = audio.speakerAndDiscipline,
-                                tag = "${audio.totalDurationSeconds / 60} min",
-                                containerColor = SurfaceContainerLowest,
-                                onClick = {
-                                    onSelectAudio(audio)
                                     onDismiss()
                                 }
                             )

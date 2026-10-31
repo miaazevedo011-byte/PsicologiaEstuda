@@ -5,6 +5,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,6 +14,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.model.Note
@@ -26,7 +28,8 @@ fun AddNoteDialog(
     initialDiscipline: String,
     onDismiss: () -> Unit,
     onSaveNote: (title: String, content: String, topic: String, discipline: String, tags: List<String>) -> Unit,
-    onUpdateNote: (id: String, title: String, content: String, topic: String, discipline: String, tags: List<String>) -> Unit = { _, _, _, _, _, _ -> }
+    onUpdateNote: (id: String, title: String, content: String, topic: String, discipline: String, tags: List<String>) -> Unit = { _, _, _, _, _, _ -> },
+    onPlayAudio: ((title: String, content: String) -> Unit)? = null
 ) {
     if (!isOpen) return
 
@@ -143,30 +146,49 @@ fun AddNoteDialog(
                 // Action Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(onClick = onDismiss) {
-                        Text("Cancelar", color = TextOnSurfaceVariant)
+                    if (onPlayAudio != null && content.isNotBlank()) {
+                        OutlinedButton(
+                            onClick = { onPlayAudio(title.ifBlank { "Rascunho de Anotação" }, content) },
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                            modifier = Modifier.testTag("preview_note_audio_button")
+                        ) {
+                            Icon(Icons.Default.VolumeUp, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Ouvir", fontSize = 12.sp)
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.width(1.dp))
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            val tagsList = tagInput.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                            if (isEditing && noteToEdit != null) {
-                                onUpdateNote(noteToEdit.id, title, content, topic, discipline, tagsList)
-                            } else {
-                                onSaveNote(title, content, topic, discipline, tagsList)
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = PinePrimary,
-                            contentColor = OnPinePrimary
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.testTag("save_note_confirm_button")
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(if (isEditing) "Atualizar Anotação" else "Salvar no Caderno", fontWeight = FontWeight.Bold)
+                        TextButton(onClick = onDismiss) {
+                            Text("Cancelar", color = TextOnSurfaceVariant)
+                        }
+                        Button(
+                            onClick = {
+                                val tagsList = tagInput.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                                if (isEditing && noteToEdit != null) {
+                                    onUpdateNote(noteToEdit.id, title, content, topic, discipline, tagsList)
+                                } else {
+                                    onSaveNote(title, content, topic, discipline, tagsList)
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = PinePrimary,
+                                contentColor = OnPinePrimary
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.testTag("save_note_confirm_button")
+                        ) {
+                            Text(if (isEditing) "Atualizar Anotação" else "Salvar no Caderno", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }

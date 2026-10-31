@@ -155,18 +155,6 @@ fun HomeScreen(
                             }
                         }
                     }
-
-                    FilledTonalIconButton(
-                        onClick = onOpenAddNote,
-                        modifier = Modifier.size(38.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.EditNote,
-                            contentDescription = "Nota Rápida",
-                            tint = PinePrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
                 }
             }
         }
@@ -506,17 +494,80 @@ fun HomeScreen(
                     )
                 }
 
-                // Card 1: Destaque Verde Escuro (Psicanálise Freudiana)
-                val isTrack1Suspended = track1?.isSuspended == true
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { if (!isTrack1Suspended) onNavigateTab(AppTab.ENCICLOPEDIA) },
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isTrack1Suspended) SurfaceContainerHigh else PinePrimaryContainer
-                    )
-                ) {
+                if (uiState.studyTracks.isEmpty()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onNavigateTab(AppTab.MATERIAIS) }
+                            .testTag("empty_tracks_onboarding_card"),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = PinePrimaryContainer)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(Color.White.copy(alpha = 0.2f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.CloudUpload, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Inicie Seus Estudos a Partir dos Conteúdos",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    )
+                                    Text(
+                                        text = "Anexe apostilas, PDFs ou anotações na Biblioteca para que disciplinas, flashcards e casos clínicos sejam gerados automaticamente!",
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = PinePrimaryFixed,
+                                            fontSize = 12.sp,
+                                            lineHeight = 16.sp
+                                        )
+                                    )
+                                }
+                            }
+
+                            Button(
+                                onClick = { onNavigateTab(AppTab.MATERIAIS) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.White,
+                                    contentColor = PinePrimary
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Anexar Primeiro Material de Estudo", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                } else {
+                    // Card 1: Destaque Verde Escuro (Trilha Ativa)
+                    val isTrack1Suspended = track1?.isSuspended == true
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { if (!isTrack1Suspended) onNavigateTab(AppTab.DISCIPLINAS) },
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isTrack1Suspended) SurfaceContainerHigh else PinePrimaryContainer
+                        )
+                    ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -850,6 +901,7 @@ fun HomeScreen(
                     }
                 }
             }
+        }
         }
 
         // 5. Agenda e Planejamento Acadêmico (Data Presente do Celular)

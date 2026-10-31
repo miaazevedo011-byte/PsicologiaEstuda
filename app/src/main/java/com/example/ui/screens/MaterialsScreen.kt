@@ -24,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.MaterialType
 import com.example.model.Note
-import com.example.model.PodcastAudio
 import com.example.model.StudyMaterial
 import com.example.ui.theme.*
 import com.example.viewmodel.MaterialsFilter
@@ -36,9 +35,13 @@ fun MaterialsScreen(
     onSelectFilter: (MaterialsFilter) -> Unit,
     onOpenAddMaterial: () -> Unit,
     onOpenAddNote: (String, String) -> Unit,
-    onPlayAudio: (PodcastAudio) -> Unit,
+    onSelectMaterial: (StudyMaterial) -> Unit,
     onEditNote: (Note) -> Unit = {},
-    onDeleteNote: (String) -> Unit = {}
+    onDeleteNote: (String) -> Unit = {},
+    onPlayNoteAudio: (Note) -> Unit = {},
+    onPlayMaterialAudio: (StudyMaterial) -> Unit = {},
+    activeItemId: String? = null,
+    isSpeaking: Boolean = false
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
@@ -46,8 +49,7 @@ fun MaterialsScreen(
         uiState.materials.filter { mat ->
             val matchesFilter = when (uiState.materialsFilter) {
                 MaterialsFilter.TODOS -> true
-                MaterialsFilter.PDFS -> mat.type == MaterialType.PDF || mat.type == MaterialType.DOCX
-                MaterialsFilter.AUDIOS -> mat.type == MaterialType.AUDIO
+                MaterialsFilter.PDFS -> mat.type == MaterialType.PDF || mat.type == MaterialType.DOCX || mat.type == MaterialType.IMAGEM
                 MaterialsFilter.NOTAS -> false
             }
             val matchesSearch = if (searchQuery.isBlank()) true else {
@@ -145,7 +147,6 @@ fun MaterialsScreen(
                     listOf(
                         MaterialsFilter.TODOS to "Todos",
                         MaterialsFilter.PDFS to "PDFs & Artigos",
-                        MaterialsFilter.AUDIOS to "Áudios & Podcasts",
                         MaterialsFilter.NOTAS to "Notas"
                     ).forEach { (filter, label) ->
                         val isSelected = uiState.materialsFilter == filter
@@ -311,7 +312,7 @@ fun MaterialsScreen(
                                 Icon(Icons.Default.CheckCircle, contentDescription = null, tint = PinePrimaryFixed, modifier = Modifier.size(16.dp))
                                 Column {
                                     Text(
-                                        text = "PROCESSAMENTO RECENTE CONCLUÍDO",
+                                        text = if (uiState.materials.isNotEmpty()) "ÚLTIMO MATERIAL PROCESSADO" else "BIBLIOTECA VAZIA",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontSize = 9.sp,
                                             fontWeight = FontWeight.Bold,
@@ -319,156 +320,42 @@ fun MaterialsScreen(
                                         )
                                     )
                                     Text(
-                                        text = "A Teoria do Apego na Clínica Contemporânea.pdf",
+                                        text = uiState.materials.firstOrNull()?.title ?: "Nenhum arquivo anexado ainda",
                                         style = MaterialTheme.typography.bodySmall.copy(
                                             fontWeight = FontWeight.SemiBold,
                                             color = Color.White
-                                        )
+                                        ),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
 
-                            // 4 Pills of Extracted Content
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                IngestionStatPill("1 Resumo Executivo", Modifier.weight(1f))
-                                IngestionStatPill("16 Flashcards Novos", Modifier.weight(1f))
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                IngestionStatPill("4 Termos Glossário", Modifier.weight(1f))
-                                IngestionStatPill("Áudio Síntese (7 min)", Modifier.weight(1f))
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 3. Podcasts & Áudios de Estudo
-        if (uiState.materialsFilter != MaterialsFilter.PDFS && uiState.materialsFilter != MaterialsFilter.NOTAS) {
-            item {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(Icons.Default.Headphones, contentDescription = null, tint = PinePrimary, modifier = Modifier.size(20.dp))
-                            Text(
-                                text = "Podcasts & Áudios de Estudo",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = PinePrimary
-                                )
-                            )
-                        }
-                        Text("Ver fila >", style = MaterialTheme.typography.labelSmall.copy(color = SageSecondary))
-                    }
-
-                    // Queue of audios
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        uiState.audios.forEach { audio ->
-                            val isPlayingThis = uiState.isAudioPlaying && uiState.activeAudio?.id == audio.id
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onPlayAudio(audio) },
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (isPlayingThis) SageSecondaryFixed else SurfaceContainerLowest
-                                ),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                            ) {
+                            if (uiState.materials.isNotEmpty()) {
+                                val latest = uiState.materials.first()
+                                // 4 Pills of Extracted Content
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(44.dp)
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(if (isPlayingThis) PinePrimary else SageSecondaryContainer),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = if (isPlayingThis) Icons.Default.GraphicEq else Icons.Default.PlayArrow,
-                                            contentDescription = null,
-                                            tint = if (isPlayingThis) Color.White else PinePrimary
-                                        )
-                                    }
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Surface(
-                                            shape = RoundedCornerShape(4.dp),
-                                            color = SurfaceContainerHigh
-                                        ) {
-                                            Text(
-                                                text = audio.tag,
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontSize = 9.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = PinePrimary
-                                                ),
-                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                            )
-                                        }
-                                        Text(
-                                            text = audio.episodeTitle,
-                                            style = MaterialTheme.typography.titleSmall.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                color = TextOnSurface
-                                            ),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Text(
-                                            text = audio.speakerAndDiscipline,
-                                            style = MaterialTheme.typography.bodySmall.copy(
-                                                fontSize = 11.sp,
-                                                color = TextOnSurfaceVariant
-                                            ),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Text(
-                                            text = "${audio.totalDurationSeconds / 60} min",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                color = SageSecondary,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        )
-                                        IconButton(
-                                            onClick = { onPlayAudio(audio) },
-                                            modifier = Modifier.size(30.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.FolderOpen,
-                                                contentDescription = "Abrir Arquivo",
-                                                tint = PinePrimary,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    }
+                                    IngestionStatPill("1 Resumo & Áudio", Modifier.weight(1f))
+                                    IngestionStatPill("${latest.flashcardsCount} Flashcards Gerados", Modifier.weight(1f))
                                 }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    IngestionStatPill(latest.linkedDiscipline, Modifier.weight(1f))
+                                    IngestionStatPill(latest.size, Modifier.weight(1f))
+                                }
+                            } else {
+                                Text(
+                                    text = "Toque acima para anexar seus primeiros PDFs ou fotos. O app desenvolverá disciplinas, flashcards e leitura por voz a partir dos seus arquivos!",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = Color.White.copy(alpha = 0.85f),
+                                        fontSize = 11.sp
+                                    )
+                                )
                             }
                         }
                     }
@@ -477,7 +364,7 @@ fun MaterialsScreen(
         }
 
         // 4. Meus Materiais de Estudo (Listagem com Conexões Ativas)
-        if (uiState.materialsFilter != MaterialsFilter.AUDIOS && uiState.materialsFilter != MaterialsFilter.NOTAS) {
+        if (uiState.materialsFilter != MaterialsFilter.NOTAS) {
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -503,8 +390,70 @@ fun MaterialsScreen(
                 }
             }
 
-            items(filteredMaterials) { material ->
-                StudyMaterialCard(material)
+            if (filteredMaterials.isEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpenAddMaterial() }
+                            .testTag("empty_materials_card"),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = SurfaceContainerLowest),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .clip(CircleShape)
+                                    .background(SageSecondaryContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.UploadFile, contentDescription = null, tint = PinePrimary, modifier = Modifier.size(28.dp))
+                            }
+                            Text(
+                                text = "Nenhum material anexado ainda",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = PinePrimary
+                                )
+                            )
+                            Text(
+                                text = "Anexe apostilas, PDFs de ementas ou fotos de anotações. Você poderá abrir qualquer arquivo para leitura por voz, e a IA sincronizará flashcards e casos práticos!",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = TextOnSurfaceVariant,
+                                    lineHeight = 18.sp,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            )
+                            Button(
+                                onClick = onOpenAddMaterial,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = PinePrimary)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Anexar Primeiro Material")
+                            }
+                        }
+                    }
+                }
+            } else {
+                items(filteredMaterials) { material ->
+                    val isPlaying = isSpeaking && activeItemId == material.id
+                    StudyMaterialCard(
+                        material = material,
+                        isPlaying = isPlaying,
+                        onPlayAudio = { onPlayMaterialAudio(material) },
+                        onClick = { onSelectMaterial(material) }
+                    )
+                }
             }
         }
 
@@ -543,8 +492,11 @@ fun MaterialsScreen(
             }
 
             items(uiState.notes) { note ->
+                val isPlaying = isSpeaking && activeItemId == note.id
                 NoteCard(
                     note = note,
+                    isPlaying = isPlaying,
+                    onPlayAudio = { onPlayNoteAudio(note) },
                     onEdit = { onEditNote(note) },
                     onDelete = { onDeleteNote(note.id) }
                 )
@@ -575,7 +527,12 @@ private fun IngestionStatPill(text: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun StudyMaterialCard(material: StudyMaterial) {
+private fun StudyMaterialCard(
+    material: StudyMaterial,
+    isPlaying: Boolean = false,
+    onPlayAudio: () -> Unit = {},
+    onClick: () -> Unit
+) {
     val (icon, iconCol) = when (material.type) {
         MaterialType.PDF -> Icons.Default.PictureAsPdf to PinePrimary
         MaterialType.DOCX -> Icons.Default.Description to SageSecondary
@@ -587,6 +544,7 @@ private fun StudyMaterialCard(material: StudyMaterial) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .testTag("material_card_${material.id}"),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = SurfaceContainerLowest),
@@ -630,8 +588,21 @@ private fun StudyMaterialCard(material: StudyMaterial) {
                         )
                     }
                 }
-                IconButton(onClick = { /* more options */ }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = null, tint = SageSecondary)
+
+                IconButton(
+                    onClick = onPlayAudio,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(if (isPlaying) PeachTertiary else SageSecondaryContainer)
+                        .testTag("play_material_${material.id}")
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Stop else Icons.Default.VolumeUp,
+                        contentDescription = if (isPlaying) "Parar áudio" else "Ouvir resumo do material",
+                        tint = if (isPlaying) OnPeachTertiary else PinePrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
 
@@ -665,6 +636,43 @@ private fun StudyMaterialCard(material: StudyMaterial) {
                         lineHeight = 16.sp
                     ),
                     modifier = Modifier.padding(10.dp)
+                )
+            }
+
+            // Audio listen action row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = onPlayAudio,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isPlaying) PeachTertiary else SageSecondaryContainer,
+                        contentColor = if (isPlaying) OnPeachTertiary else OnSageSecondaryContainer
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Stop else Icons.Default.GraphicEq,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isPlaying) "Parar Áudio do Material" else "Ouvir Resumo por Voz (TTS)",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Text(
+                    text = "Toque para abrir leitor ➔",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = SageSecondary,
+                        fontSize = 10.sp
+                    )
                 )
             }
 
@@ -742,7 +750,13 @@ private fun StudyMaterialCard(material: StudyMaterial) {
 }
 
 @Composable
-private fun NoteCard(note: Note, onEdit: () -> Unit = {}, onDelete: () -> Unit = {}) {
+private fun NoteCard(
+    note: Note,
+    isPlaying: Boolean = false,
+    onPlayAudio: () -> Unit = {},
+    onEdit: () -> Unit = {},
+    onDelete: () -> Unit = {}
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -791,6 +805,19 @@ private fun NoteCard(note: Note, onEdit: () -> Unit = {}, onDelete: () -> Unit =
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(
+                        onClick = onPlayAudio,
+                        modifier = Modifier
+                            .size(28.dp)
+                            .testTag("play_note_${note.id}")
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Stop else Icons.Default.VolumeUp,
+                            contentDescription = if (isPlaying) "Parar leitura" else "Ouvir anotação",
+                            tint = if (isPlaying) PeachTertiary else PinePrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    IconButton(
                         onClick = onEdit,
                         modifier = Modifier.size(28.dp).testTag("edit_note_${note.id}")
                     ) {
@@ -820,6 +847,32 @@ private fun NoteCard(note: Note, onEdit: () -> Unit = {}, onDelete: () -> Unit =
                     lineHeight = 18.sp
                 )
             )
+
+            // TTS Play Action Button
+            Button(
+                onClick = onPlayAudio,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isPlaying) PeachTertiary else SageSecondaryContainer,
+                    contentColor = if (isPlaying) OnPeachTertiary else OnSageSecondaryContainer
+                ),
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("play_note_btn_${note.id}")
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.Stop else Icons.Default.VolumeUp,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (isPlaying) "Parar Leitura da Anotação" else "Ouvir Anotação por Voz (TTS)",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
 
             // Tags
             if (note.tags.isNotEmpty()) {

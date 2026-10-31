@@ -1007,39 +1007,6 @@ object SampleData {
         )
     )
 
-    val initialAudioPodcasts = listOf(
-        PodcastAudio(
-            id = "audio_1",
-            episodeTitle = "Ep. 07: O Complexo de Édipo e a Estrutura Psíquica",
-            speakerAndDiscipline = "Prof. Dra. Helena S. Guimarães & Síntese IA • Psicanálise I",
-            totalDurationSeconds = 1125, // 18:45
-            currentPositionSeconds = 372, // 06:12
-            isPlaying = false,
-            speed = 1.25f,
-            tag = "Psicanálise I"
-        ),
-        PodcastAudio(
-            id = "audio_2",
-            episodeTitle = "Ep. 04: Condicionamento Operante de Skinner",
-            speakerAndDiscipline = "Prof. Dr. Eduardo Camargo • Análise do Comportamento",
-            totalDurationSeconds = 1680, // 28:00
-            currentPositionSeconds = 860, // 14:20
-            isPlaying = false,
-            speed = 1.0f,
-            tag = "Análise do Comportamento"
-        ),
-        PodcastAudio(
-            id = "audio_3",
-            episodeTitle = "Síntese de Aula: Neurotransmissores e Psicofarmacologia",
-            speakerAndDiscipline = "Gerado da apostila oficial • Bases Biológicas",
-            totalDurationSeconds = 500, // 08:20
-            currentPositionSeconds = 0,
-            isPlaying = false,
-            speed = 1.0f,
-            tag = "Síntese de Aula"
-        )
-    )
-
     val initialMaterials = listOf(
         StudyMaterial(
             id = "mat_1",

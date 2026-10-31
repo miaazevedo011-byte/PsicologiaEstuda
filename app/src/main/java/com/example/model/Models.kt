@@ -12,11 +12,7 @@ enum class MaterialType {
     PDF, DOCX, AUDIO, LINK, IMAGEM
 }
 
-enum class AppFontStyle(val label: String) {
-    DEFAULT("Padrão (Inter / Sans-Serif)"),
-    SERIF("Serifada Acadêmica (Didática)"),
-    MONOSPACE("Estruturada (Monoespaçada)")
-}
+
 
 enum class AppThemeMode(val label: String) {
     LIGHT("Claro"),
@@ -157,17 +153,6 @@ data class Note(
     val tags: List<String> = emptyList()
 )
 
-data class PodcastAudio(
-    val id: String,
-    val episodeTitle: String,
-    val speakerAndDiscipline: String,
-    val totalDurationSeconds: Int,
-    val currentPositionSeconds: Int,
-    val isPlaying: Boolean = false,
-    val speed: Float = 1.0f,
-    val tag: String = "PsicoCast Acadêmico"
-)
-
 data class StudyMaterial(
     val id: String,
     val title: String,
@@ -205,3 +190,11 @@ data class ClinicalCase(
     val dsm5DiagnosticRationale: String,
     val therapeuticApproach: String
 )
+
+data class ChatMessage(
+    val id: String = System.currentTimeMillis().toString(),
+    val text: String,
+    val isUser: Boolean,
+    val timestamp: String = "Agora"
+)
+

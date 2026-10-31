@@ -225,6 +225,62 @@ fun DisciplinesScreen(
         }
 
         // 3. Disciplinas List
+        if (uiState.disciplines.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpenAddMaterial() }
+                        .testTag("empty_disciplines_card"),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceContainerLowest),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .clip(CircleShape)
+                                .background(SageSecondaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.School, contentDescription = null, tint = PinePrimary, modifier = Modifier.size(28.dp))
+                        }
+                        Text(
+                            text = "Nenhuma disciplina cadastrada ainda",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = PinePrimary
+                            )
+                        )
+                        Text(
+                            text = "Anexe fotos de cadernos, PDFs de ementas ou apostilas para que suas disciplinas sejam estruturadas automaticamente a partir dos seus conteúdos!",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = TextOnSurfaceVariant,
+                                lineHeight = 18.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        )
+                        Button(
+                            onClick = onOpenAddMaterial,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PinePrimary)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Anexar Material de Disciplina")
+                        }
+                    }
+                }
+            }
+        }
+
         items(uiState.disciplines) { discipline ->
             val isExpanded = expandedDisciplineId == discipline.id
             Card(

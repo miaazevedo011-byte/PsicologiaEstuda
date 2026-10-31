@@ -1,24 +1,34 @@
 package com.example.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.AppStorageRepository
 import com.example.data.CurriculumData
 import com.example.data.SampleData
 import com.example.model.*
+import com.google.firebase.Firebase
+import com.google.firebase.ai.ai
+import com.google.firebase.ai.type.Tool
+import com.google.firebase.ai.type.content
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 
 enum class AppTab(val label: String, val route: String) {
     INICIO("Início", "inicio"),
     ENCICLOPEDIA("Enciclopédia", "enciclopedia"),
-    DISCIPLINAS("Disciplinas", "disciplinas"),
+    CRONOGRAMA("Cronograma", "cronograma"),
     FLASHCARDS("Flashcards", "flashcards"),
-    MATERIAIS("Materiais", "materiais")
+    DISCIPLINAS("Disciplinas", "disciplinas"),
+    MATERIAIS("Materiais", "materiais"),
+    IA_CHAT("Assistente IA", "ia_chat")
 }
 
 enum class EncyclopediaSubTab {
@@ -26,7 +36,7 @@ enum class EncyclopediaSubTab {
 }
 
 enum class MaterialsFilter {
-    TODOS, PDFS, AUDIOS, NOTAS
+    TODOS, PDFS, NOTAS
 }
 
 data class UnifiedSearchResult(
@@ -34,7 +44,6 @@ data class UnifiedSearchResult(
     val disciplines: List<Discipline>,
     val flashcards: List<Flashcard>,
     val notes: List<Note>,
-    val audios: List<PodcastAudio>,
     val materials: List<StudyMaterial>
 )
 
@@ -61,32 +70,45 @@ data class PsicoUiState(
     val notes: List<Note> = emptyList(),
     val materials: List<StudyMaterial> = emptyList(),
     
-    // Flashcard State
-    val decks: List<Deck> = SampleData.decks,
-    val activeDeck: Deck = SampleData.decks.first(),
+    // Flashcard State (Starts empty, populated dynamically from attached materials)
+    val decks: List<Deck> = emptyList(),
+    val activeDeck: Deck = Deck(
+        id = "deck_geral",
+        title = "Meus Flashcards",
+        category = "Geral",
+        totalCards = 0,
+        dailyGoal = 5,
+        masteredCount = 0,
+        isCurrent = true
+    ),
     val flashcards: List<Flashcard> = emptyList(),
     val currentCardIndex: Int = 0,
     val isCardFlipped: Boolean = false,
     val isHintExpanded: Boolean = true,
     
-    // Audio Player State
-    val audios: List<PodcastAudio> = emptyList(),
-    val activeAudio: PodcastAudio? = null,
-    val isAudioPlaying: Boolean = false,
-    val playbackPositionSeconds: Int = 0,
-    val playbackSpeed: Float = 1.0f,
-    
+    // Material Reader State
+    val selectedMaterial: StudyMaterial? = null,
+    val isMaterialReaderOpen: Boolean = false,
+
     // Clinical Cases (Generated dynamically from attached materials)
     val clinicalCases: List<ClinicalCase> = emptyList(),
     val isClinicalCasesDialogOpen: Boolean = false,
     val isShareAppDialogOpen: Boolean = false,
-    val isSelectAudioDialogOpen: Boolean = false,
+
+    // AI Chat & Search State (Gemini 3.8 Flash + Google Search Grounding)
+    val chatMessages: List<ChatMessage> = listOf(
+        ChatMessage(
+            text = "Olá! Sou seu assistente de Inteligência Artificial integrado ao Google Search Grounding e Gemini 3.8 Flash. Pesquiso em fontes científicas, acadêmicas e sites seguros autorizados para trazer veracidade e precisão aos seus estudos em Psicologia.",
+            isUser = false
+        )
+    ),
+    val isAiLoading: Boolean = false,
+    val aiStreamingText: String = "",
 
     // Dialogs & Modals
     val isSettingsDialogOpen: Boolean = false,
     val isDarkMode: Boolean = false,
     val appThemeMode: AppThemeMode = AppThemeMode.LIGHT,
-    val appFontStyle: AppFontStyle = AppFontStyle.DEFAULT,
     val appFontScale: Float = 1.0f,
     val studyNotificationsEnabled: Boolean = true,
     val spacedRepetitionAlertsEnabled: Boolean = true,
@@ -120,27 +142,30 @@ class PsicoEstudaViewModel(application: Application) : AndroidViewModel(applicat
     val uiState: StateFlow<PsicoUiState>
 
     init {
-        val hasSaved = storage.hasSavedData()
         val savedProfile = storage.loadUserProfile()
         val savedEmail = storage.getStudentEmail()
         val savedEvents = storage.loadAcademicEvents()
         val savedMaterials = storage.loadStudyMaterials()
         val savedNotes = storage.loadNotes()
         val savedCases = storage.loadClinicalCases()
+        val savedDisciplines = storage.loadDisciplines()
+        val savedTracks = storage.loadStudyTracks()
+        val savedFlashcards = storage.loadFlashcards()
+        val savedDecks = storage.loadDecks()
 
         val savedDarkMode = storage.isDarkMode()
         val savedThemeMode = storage.getThemeMode()
-        val savedFontStyle = storage.getFontStyle()
         val savedFontScale = storage.getFontScale()
         val savedNotifStudy = storage.getStudyNotifications()
         val savedNotifSpaced = storage.getSpacedRepetitionAlerts()
         val savedNotifExams = storage.getExamDeadlinesAlerts()
 
-        // If first launch, start cleanly with student starting at 1st period and 0 stats
+        // With the exception of the Encyclopedia, everything starts from zero:
+        // Profile starts clean with 0 stats and 1st period
         val initialProfile = savedProfile ?: UserProfile(
-            name = "Novo Estudante",
+            name = "Estudante",
             course = "Psicologia",
-            institution = "USP - Univ. de São Paulo",
+            institution = "Universidade",
             semester = "1º Período",
             semesterNumber = 1,
             shift = "Matutino",
@@ -154,23 +179,25 @@ class PsicoEstudaViewModel(application: Application) : AndroidViewModel(applicat
         )
 
         val initialSemester = initialProfile.semesterNumber
-        val initialDisciplines = CurriculumData.getDisciplinesFor(initialProfile.institution, initialSemester)
+        val initialDisciplines = savedDisciplines ?: emptyList()
         val initialEvents = savedEvents ?: emptyList()
         val initialMaterials = savedMaterials ?: emptyList()
         val initialNotes = savedNotes ?: emptyList()
         val initialCases = savedCases ?: emptyList()
+        val initialTracks = savedTracks ?: emptyList()
+        val initialCards = savedFlashcards ?: emptyList()
 
-        val savedTracks = storage.loadStudyTracks()
-        val initialTracks = savedTracks ?: SampleData.studyTracks
-
-        val savedFlashcards = storage.loadFlashcards()
-        val initialCards = if (savedFlashcards != null && savedFlashcards.isNotEmpty()) {
-            savedFlashcards
-        } else if (hasSaved) {
-            SampleData.initialFlashcards
-        } else {
-            SampleData.initialFlashcards.take(6)
-        }
+        val defaultDeck = Deck(
+            id = "deck_geral",
+            title = "Meus Flashcards",
+            category = "Geral",
+            totalCards = initialCards.size,
+            dailyGoal = 5,
+            masteredCount = 0,
+            isCurrent = true
+        )
+        val initialDecks = if (!savedDecks.isNullOrEmpty()) savedDecks else listOf(defaultDeck)
+        val activeDeck = initialDecks.firstOrNull() ?: defaultDeck
 
         _uiState = MutableStateFlow(
             PsicoUiState(
@@ -183,12 +210,11 @@ class PsicoEstudaViewModel(application: Application) : AndroidViewModel(applicat
                 materials = initialMaterials,
                 notes = initialNotes,
                 clinicalCases = initialCases,
+                decks = initialDecks,
+                activeDeck = activeDeck,
                 flashcards = initialCards,
-                audios = if (initialMaterials.isNotEmpty()) SampleData.initialAudioPodcasts else emptyList(),
-                activeAudio = if (initialMaterials.isNotEmpty()) SampleData.initialAudioPodcasts.firstOrNull() else null,
                 isDarkMode = savedDarkMode,
                 appThemeMode = savedThemeMode,
-                appFontStyle = savedFontStyle,
                 appFontScale = savedFontScale,
                 studyNotificationsEnabled = savedNotifStudy,
                 spacedRepetitionAlertsEnabled = savedNotifSpaced,
@@ -210,17 +236,10 @@ class PsicoEstudaViewModel(application: Application) : AndroidViewModel(applicat
         _uiState.update { it.copy(materialsFilter = filter) }
     }
 
-    // Dynamic semester selection: updates semester AND changes the disciplines according to curriculum!
+    // Semester selection: updates student selected semester while preserving dynamic user disciplines
     fun selectSemester(semester: Int) {
         _uiState.update { state ->
-            val updatedDisciplines = CurriculumData.getDisciplinesFor(
-                institution = state.userProfile.institution,
-                semester = semester
-            )
-            state.copy(
-                selectedSemester = semester,
-                disciplines = updatedDisciplines
-            )
+            state.copy(selectedSemester = semester)
         }
     }
 
@@ -536,12 +555,10 @@ class PsicoEstudaViewModel(application: Application) : AndroidViewModel(applicat
         weeklyTargetHours: Float,
         resetStats: Boolean
     ) {
-        val syncedDisciplines = CurriculumData.getDisciplinesFor(institution, semesterNumber)
-
         _uiState.update { state ->
             val updatedProfile = state.userProfile.copy(
                 name = name.ifBlank { "Estudante" },
-                institution = institution.ifBlank { "USP - Univ. de São Paulo" },
+                institution = institution.ifBlank { "Universidade" },
                 course = course.ifBlank { "Psicologia" },
                 semester = "${semesterNumber}º Período",
                 semesterNumber = semesterNumber,
@@ -559,92 +576,19 @@ class PsicoEstudaViewModel(application: Application) : AndroidViewModel(applicat
             state.copy(
                 userProfile = updatedProfile,
                 selectedSemester = semesterNumber,
-                disciplines = syncedDisciplines,
                 isEditProfileDialogOpen = false,
-                toastMessage = "Perfil e grade do ${semesterNumber}º Período atualizados e salvos!"
+                toastMessage = "Perfil do estudante atualizado e salvo!"
             )
         }
     }
 
-    // Audio Player Controls
-    fun playAudio(audio: PodcastAudio) {
-        _uiState.update { state ->
-            val list = if (state.audios.any { it.id == audio.id }) state.audios else listOf(audio) + state.audios
-            state.copy(
-                activeAudio = audio,
-                audios = list,
-                isAudioPlaying = true,
-                playbackPositionSeconds = 0,
-                isSelectAudioDialogOpen = false,
-                userProfile = state.userProfile.copy(audioClassesListened = state.userProfile.audioClassesListened + 1),
-                toastMessage = "Reproduzindo: ${audio.episodeTitle}"
-            )
-        }
+    // Material Reader Controls
+    fun openMaterialReader(material: StudyMaterial) {
+        _uiState.update { it.copy(selectedMaterial = material, isMaterialReaderOpen = true) }
     }
 
-    fun togglePlayPauseAudio() {
-        _uiState.update { it.copy(isAudioPlaying = !it.isAudioPlaying) }
-    }
-
-    fun stopAudio() {
-        _uiState.update { it.copy(isAudioPlaying = false, playbackPositionSeconds = 0) }
-    }
-
-    fun closeAudio() {
-        _uiState.update { it.copy(activeAudio = null, isAudioPlaying = false, playbackPositionSeconds = 0) }
-    }
-
-    fun seekAudioBy(deltaSeconds: Int) {
-        _uiState.update { state ->
-            val total = state.activeAudio?.totalDurationSeconds ?: 0
-            val newPos = (state.playbackPositionSeconds + deltaSeconds).coerceIn(0, total)
-            state.copy(playbackPositionSeconds = newPos)
-        }
-    }
-
-    fun cycleSpeed() {
-        _uiState.update { state ->
-            val speeds = listOf(1.0f, 1.25f, 1.5f, 2.0f)
-            val currentIdx = speeds.indexOf(state.playbackSpeed)
-            val nextSpeed = speeds[(currentIdx + 1) % speeds.size]
-            state.copy(playbackSpeed = nextSpeed)
-        }
-    }
-
-    fun nextAudio() {
-        _uiState.update { state ->
-            val list = state.audios
-            if (list.isNotEmpty()) {
-                val currentIdx = list.indexOfFirst { it.id == state.activeAudio?.id }
-                val nextIdx = (if (currentIdx == -1) 0 else currentIdx + 1) % list.size
-                val nextTrack = list[nextIdx]
-                state.copy(activeAudio = nextTrack, isAudioPlaying = true, playbackPositionSeconds = 0)
-            } else state
-        }
-    }
-
-    fun previousAudio() {
-        _uiState.update { state ->
-            val list = state.audios
-            if (list.isNotEmpty()) {
-                val currentIdx = list.indexOfFirst { it.id == state.activeAudio?.id }
-                val prevIdx = if (currentIdx <= 0) list.size - 1 else currentIdx - 1
-                val prevTrack = list[prevIdx]
-                state.copy(activeAudio = prevTrack, isAudioPlaying = true, playbackPositionSeconds = 0)
-            } else state
-        }
-    }
-
-    fun selectAudio(audio: PodcastAudio) {
-        playAudio(audio)
-    }
-
-    fun openSelectAudioDialog() {
-        _uiState.update { it.copy(isSelectAudioDialogOpen = true) }
-    }
-
-    fun closeSelectAudioDialog() {
-        _uiState.update { it.copy(isSelectAudioDialogOpen = false) }
+    fun closeMaterialReader() {
+        _uiState.update { it.copy(isMaterialReaderOpen = false, selectedMaterial = null) }
     }
 
     // Clinical Cases (Exercícios Práticos)
@@ -1010,14 +954,18 @@ class PsicoEstudaViewModel(application: Application) : AndroidViewModel(applicat
         fileSizeString: String = "2.4 MB"
     ) {
         viewModelScope.launch {
+            val discName = discipline.ifBlank { "Psicologia Geral" }
+            val cleanTitle = title.ifBlank { "Arquivo_${System.currentTimeMillis()}" }
+            val summaryText = if (notes.isNotBlank()) notes else "Material anexado pelo estudante em $discName. Conteúdo indexado para estudos com leitura por voz, flashcards e caso clínico prático."
+
             val newMaterial = StudyMaterial(
                 id = "mat_${System.currentTimeMillis()}",
-                title = title.ifBlank { "Arquivo_${System.currentTimeMillis()}" },
+                title = cleanTitle,
                 type = type,
                 size = fileSizeString,
                 updatedAt = "Processado agora",
-                linkedDiscipline = discipline,
-                aiSummary = if (notes.isNotBlank()) notes else "Material importado do dispositivo em $discipline. Conteúdo sintetizado e indexado para geração de flashcards, resumo em áudio e casos clínicos práticos.",
+                linkedDiscipline = discName,
+                aiSummary = summaryText,
                 flashcardsCount = 4,
                 verbetesCount = 2,
                 uriString = realFileUri
@@ -1026,60 +974,155 @@ class PsicoEstudaViewModel(application: Application) : AndroidViewModel(applicat
             // Dynamic Cross-Link: Generate Clinical Case Exercise from attached content
             val generatedCase = ClinicalCase(
                 id = "case_ai_${System.currentTimeMillis()}",
-                title = "Caso Clínico: Vinheta de '$title'",
-                patientAge = "Paciente M.R., 32 anos",
-                anamneseVignette = "Caso clínico formativo estruturado a partir do material '$title' anexado na disciplina $discipline. Paciente procura atendimento apresentando queixa subjetiva e alterações comportamentais correlatas ao conteúdo deste material.",
-                sourceMaterialOrDiscipline = "Baseado em: $title • $discipline",
-                mentalStateExam = "Consciência lúcida, orientação têmporo-espacial preservada, afeto modulado com humor ansioso, sem delírios ou alucinações.",
+                title = "Caso Prático: Análise de '$cleanTitle'",
+                patientAge = "Paciente Adulto, 28 anos",
+                anamneseVignette = "Demanda clínica estruturada a partir do material '$cleanTitle' anexado em $discName. Paciente procura acolhimento psicológico apresentando queixas correlacionadas aos temas tratados no documento: '$summaryText'.",
+                sourceMaterialOrDiscipline = "$cleanTitle • $discName",
+                mentalStateExam = "Consciência clara, atenção voluntária preservada, afeto modulado e congruente com humor relatado, discurso com nexo causal, sem alterações senso-perceptivas.",
                 questions = listOf(
                     ClinicalQuestion(
                         id = "q_mat_1_${System.currentTimeMillis()}",
-                        prompt = "Qual conceitualização diagnóstica e conduta clínica é recomendada a partir dos pontos-chave de '$title'?",
+                        prompt = "Com base nas evidências e premissas de '$cleanTitle', qual a conduta diagnóstica inicial recomendada em $discName?",
                         options = listOf(
-                            "Formulação integrada e planejamento psicoterapêutico alinhado a $discipline",
-                            "Conduta expectante sem qualquer anamnese aprofundada",
-                            "Simulação deliberada de queixas",
-                            "Intervenção aversiva imediata"
+                            "Formulação de caso integrada e hipótese diagnóstica estruturada em $discName",
+                            "Conduta expectante sem qualquer anamnese clínica aprofundada",
+                            "Intervenção aversiva imediata sem estabelecimento de vínculo",
+                            "Desconsiderar a queixa subjetiva do paciente"
                         ),
                         correctOptionIndex = 0,
-                        explanation = "A fundamentação teórica de '$title' orienta para a formulação de caso e intervenção estruturada na disciplina $discipline."
+                        explanation = "A fundamentação teórica de '$cleanTitle' orienta formulação de caso compreensiva, escuta ética e projeto terapêutico singular em $discName."
                     )
                 ),
-                dsm5DiagnosticRationale = "Semiologia e critérios alinhados ao conteúdo programático de $discipline.",
-                therapeuticApproach = "Prática clínica baseada em evidências e supervisão reflexiva."
+                dsm5DiagnosticRationale = "Semiologia e critérios nosológicos alinhados ao conteúdo programático de $discName e DSM-5-TR.",
+                therapeuticApproach = "Prática psicológica baseada em evidências científicas, acolhimento ético e supervisão clínica estruturada."
             )
 
-            val generatedCard = Flashcard(
-                id = "card_ai_${System.currentTimeMillis()}",
-                deckId = "deck_custom",
-                category = discipline,
-                question = "Conceito extraído de '$title': Qual a premissa central apresentada?",
-                hint = "Revise os pontos-chave sintetizados pelo PsicoEstuda AI.",
-                answer = "O material aborda a correlação fundamental entre teoria e a formulação clínica em $discipline.",
-                citation = "$title, Material do Dispositivo",
+            // Dynamic Flashcards derived from the attached material
+            val deckId = "deck_${discName.lowercase().replace(" ", "_").filter { it.isLetterOrDigit() || it == '_' }}"
+            val card1 = Flashcard(
+                id = "card_${System.currentTimeMillis()}_1",
+                deckId = deckId,
+                category = discName,
+                question = "Qual o conceito nuclear e tese central apresentada em '$cleanTitle'?",
+                hint = "Foco nos fundamentos teóricos e no tema do material.",
+                answer = summaryText,
+                citation = "$cleanTitle • $discName",
                 status = CardMasteryStatus.NOVO
             )
+            val card2 = Flashcard(
+                id = "card_${System.currentTimeMillis()}_2",
+                deckId = deckId,
+                category = "$discName • Metodologia",
+                question = "Quais métodos de observação e critérios analíticos destacados em '$cleanTitle' orientam o estudante?",
+                hint = "Considere a semiologia e o raciocínio metodológico.",
+                answer = "Estruturação sistemática de hipóteses, registro de evidências empíricas e exame dos fenômenos psicológicos em $discName.",
+                citation = "$cleanTitle • Metodologia",
+                status = CardMasteryStatus.NOVO
+            )
+            val card3 = Flashcard(
+                id = "card_${System.currentTimeMillis()}_3",
+                deckId = deckId,
+                category = "$discName • Prática Clínica",
+                question = "Como articular na intervenção psicológica os postulados de '$cleanTitle'?",
+                hint = "Pense no manejo clínico e conduta ética.",
+                answer = "Aplicação de intervenções validadas, plano terapêutico singular e rigor ético preconizado pelo Conselho de Psicologia.",
+                citation = "$cleanTitle • Prática",
+                status = CardMasteryStatus.NOVO
+            )
+            val card4 = Flashcard(
+                id = "card_${System.currentTimeMillis()}_4",
+                deckId = deckId,
+                category = "$discName • Semiologia DSM-5-TR",
+                question = "Como o conteúdo de '$cleanTitle' auxilia no diagnóstico diferencial de sofrimento psíquico?",
+                hint = "Revisão dos critérios nosológicos.",
+                answer = "Permite discernir entre reações emocionais adaptativas normais e transtornos mentais com prejuízo funcional significativo.",
+                citation = "$cleanTitle • Semiologia",
+                status = CardMasteryStatus.NOVO
+            )
+            val generatedCards = listOf(card1, card2, card3, card4)
 
-            val newAudio = PodcastAudio(
-                id = "audio_ai_${System.currentTimeMillis()}",
-                episodeTitle = "Síntese: $title",
-                speakerAndDiscipline = "Leitura Pedagógica • $discipline",
-                totalDurationSeconds = 360,
-                currentPositionSeconds = 0,
-                speed = 1.0f,
-                tag = "Material Importado"
+            // Dynamic StudyTrack for Home Screen
+            val generatedTrack = StudyTrack(
+                id = "track_${System.currentTimeMillis()}",
+                title = "Estudo de $discName",
+                subtitle = "Revisão ativa baseada em '$cleanTitle' com flashcards e caso clínico.",
+                discipline = discName,
+                durationMin = 15,
+                tag = "Material Anexado",
+                colorType = "primary"
             )
 
             _uiState.update { state ->
                 val updatedMaterials = listOf(newMaterial) + state.materials
                 val updatedCases = listOf(generatedCase) + state.clinicalCases
-                val updatedCards = listOf(generatedCard) + state.flashcards
-                val updatedAudios = listOf(newAudio) + state.audios
+                val updatedCards = generatedCards + state.flashcards
 
+                // Dynamically update or create Discipline
+                val existingDisc = state.disciplines.find { it.name.equals(discName, ignoreCase = true) }
+                val updatedDisciplines = if (existingDisc != null) {
+                    state.disciplines.map { d ->
+                        if (d.id == existingDisc.id) {
+                            d.copy(
+                                materialsCount = d.materialsCount + 1,
+                                flashcardsCount = d.flashcardsCount + 4
+                            )
+                        } else d
+                    }
+                } else {
+                    val newDiscipline = Discipline(
+                        id = "disc_${System.currentTimeMillis()}",
+                        name = discName,
+                        code = "PSI-${(101..499).random()}",
+                        professor = "Docente Responsável",
+                        progressPercent = 25,
+                        currentModule = 1,
+                        totalModules = 4,
+                        syllabusSummary = "Disciplina desenvolvida a partir dos materiais anexados. Aborda fundamentos teóricos, semiologia e intervenção prática em $discName.",
+                        learningObjectives = listOf(
+                            "Conceitos centrais de $discName baseados em '$cleanTitle'" to true,
+                            "Análise metodológica e critérios do material" to false,
+                            "Formulação de caso clínico e conduta ética" to false
+                        ),
+                        materialsCount = 1,
+                        flashcardsCount = 4,
+                        audioDurationMin = 10,
+                        semester = state.selectedSemester
+                    )
+                    listOf(newDiscipline) + state.disciplines
+                }
+
+                // Dynamically update or create Deck
+                val existingDeck = state.decks.find { it.id == deckId }
+                val updatedDecks = if (existingDeck != null) {
+                    state.decks.map { dk ->
+                        if (dk.id == deckId) dk.copy(totalCards = dk.totalCards + 4) else dk
+                    }
+                } else {
+                    val newDeck = Deck(
+                        id = deckId,
+                        title = discName,
+                        category = discName,
+                        totalCards = 4,
+                        dailyGoal = 5,
+                        masteredCount = 0,
+                        isCurrent = true
+                    )
+                    listOf(newDeck) + state.decks
+                }
+                val activeDeck = updatedDecks.find { it.id == deckId } ?: updatedDecks.first()
+
+                // Dynamically update StudyTracks
+                val updatedTracks = listOf(generatedTrack) + state.studyTracks.filter { !it.discipline.equals(discName, ignoreCase = true) }
+
+                // Save everything to persistent storage
                 storage.saveStudyMaterials(updatedMaterials)
                 storage.saveClinicalCases(updatedCases)
+                storage.saveFlashcards(updatedCards)
+                storage.saveDisciplines(updatedDisciplines)
+                storage.saveDecks(updatedDecks)
+                storage.saveStudyTracks(updatedTracks)
 
-                val newHours = (state.userProfile.weeklyDedicatedHours + 0.4f).coerceAtMost(state.userProfile.weeklyTargetHours)
+                val newHours = (state.userProfile.weeklyDedicatedHours + 0.5f).coerceAtMost(state.userProfile.weeklyTargetHours)
                 val updatedProfile = state.userProfile.copy(
                     verbetesRead = state.userProfile.verbetesRead + 1,
                     weeklyDedicatedHours = newHours
@@ -1090,10 +1133,13 @@ class PsicoEstudaViewModel(application: Application) : AndroidViewModel(applicat
                     materials = updatedMaterials,
                     clinicalCases = updatedCases,
                     flashcards = updatedCards,
-                    audios = updatedAudios,
+                    disciplines = updatedDisciplines,
+                    decks = updatedDecks,
+                    activeDeck = activeDeck,
+                    studyTracks = updatedTracks,
                     isAddMaterialDialogOpen = false,
                     userProfile = updatedProfile,
-                    toastMessage = "Arquivo indexado! Flashcards, Áudio e Caso Clínico gerados e salvos!"
+                    toastMessage = "Material '$cleanTitle' anexado! Disciplina, Flashcards e Caso Clínico sincronizados com sucesso!"
                 )
             }
         }
@@ -1171,11 +1217,6 @@ class PsicoEstudaViewModel(application: Application) : AndroidViewModel(applicat
         _uiState.update { it.copy(appThemeMode = mode, isDarkMode = isDark) }
     }
 
-    fun setFontStyle(style: AppFontStyle) {
-        storage.saveFontStyle(style)
-        _uiState.update { it.copy(appFontStyle = style) }
-    }
-
     fun setFontScale(scale: Float) {
         storage.saveFontScale(scale)
         _uiState.update { it.copy(appFontScale = scale) }
@@ -1242,5 +1283,97 @@ class PsicoEstudaViewModel(application: Application) : AndroidViewModel(applicat
 
     fun showFeedbackToast(message: String) {
         _uiState.update { it.copy(toastMessage = message) }
+    }
+
+    // Gemini 3.8 Flash + Google Search Grounding Chat Assistant
+    private var chatSession: com.google.firebase.ai.Chat? = null
+
+    private fun getOrInitChatSession(): com.google.firebase.ai.Chat {
+        chatSession?.let { return it }
+        val context = getApplication<Application>().applicationContext
+        if (com.google.firebase.FirebaseApp.getApps(context).isEmpty()) {
+            com.google.firebase.FirebaseApp.initializeApp(context)
+        }
+        val model = Firebase.ai.generativeModel(
+            modelName = "gemini-3.8-flash",
+            systemInstruction = content {
+                text("""
+                    Você é o PsicoEstuda AI Assistente, mentor acadêmico especialista em Psicologia, Neurociências, Psicopatologia (DSM-5-TR, CID-11) e formulação clínica.
+                    Sempre utilize a ferramenta de pesquisa Google Search integrada para buscar e fundamentar suas respostas em fontes reais, seguras, autorizadas e livres de vírus ou informações inverídicas (como SciELO, PubMed, APA, OMS, Conselho Federal de Psicologia - CFP, repositórios de universidades públicas, Google Sites acadêmicos certificados e periódicos científicos indexados).
+                    Sua meta é fornecer:
+                    1. Explicações estruturadas, de alto rigor conceitual e didáticas.
+                    2. Citações e referências verídicas de autores e artigos científicos consolidados.
+                    3. Respostas claras, éticas e empáticas em Português (Brasil).
+                """.trimIndent())
+            },
+            tools = listOf(Tool.googleSearch())
+        )
+        val session = model.startChat()
+        chatSession = session
+        return session
+    }
+
+    fun sendAiMessage(userPrompt: String) {
+        if (userPrompt.isBlank()) return
+        val userMsg = ChatMessage(text = userPrompt, isUser = true)
+        _uiState.update { state ->
+            state.copy(
+                chatMessages = state.chatMessages + userMsg,
+                isAiLoading = true,
+                aiStreamingText = ""
+            )
+        }
+
+        viewModelScope.launch {
+            try {
+                val session = getOrInitChatSession()
+                withTimeout(60_000L) {
+                    var fullResponse = ""
+                    val responseFlow = session.sendMessageStream(userPrompt)
+                    responseFlow.collect { chunk ->
+                        val chunkText = chunk.text ?: ""
+                        fullResponse += chunkText
+                        _uiState.update { it.copy(aiStreamingText = fullResponse) }
+                    }
+
+                    val aiMsg = ChatMessage(text = fullResponse, isUser = false)
+                    _uiState.update { state ->
+                        state.copy(
+                            chatMessages = state.chatMessages + aiMsg,
+                            isAiLoading = false,
+                            aiStreamingText = ""
+                        )
+                    }
+                }
+            } catch (e: TimeoutCancellationException) {
+                Log.e("AiChat", "Generation timed out", e)
+                val errorMsg = ChatMessage(text = "A pesquisa ou geração demorou mais de 60 segundos. Por favor, tente novamente com uma pergunta mais específica.", isUser = false)
+                _uiState.update { state ->
+                    state.copy(
+                        chatMessages = state.chatMessages + errorMsg,
+                        isAiLoading = false,
+                        aiStreamingText = ""
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e("AiChat", "Error generating AI response", e)
+                val errorMessage = when {
+                    e is IllegalStateException && (e.message?.contains("FirebaseApp") == true || e.message?.contains("initialized") == true) ->
+                        "O serviço Firebase AI Logic está sendo sincronizado no app. Por favor, tente novamente."
+                    else ->
+                        "Erro ao conectar com o Gemini: ${e.localizedMessage ?: "Verifique sua conexão ou configuração do App Check."}"
+                }
+                val errorMsg = ChatMessage(text = errorMessage, isUser = false)
+                _uiState.update { state ->
+                    state.copy(
+                        chatMessages = state.chatMessages + errorMsg,
+                        isAiLoading = false,
+                        aiStreamingText = ""
+                    )
+                }
+            }
+        }
     }
 }

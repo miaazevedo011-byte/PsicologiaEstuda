@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.example.model.AppFontStyle
 import com.example.model.AppThemeMode
 import com.example.ui.theme.*
 
@@ -36,7 +35,6 @@ import com.example.ui.theme.*
 fun AppSettingsDialog(
     isOpen: Boolean,
     isDarkMode: Boolean,
-    currentFontStyle: AppFontStyle,
     currentFontScale: Float,
     studyNotifsEnabled: Boolean,
     spacedRepetitionNotifsEnabled: Boolean,
@@ -44,7 +42,6 @@ fun AppSettingsDialog(
     studentEmail: String,
     onDismiss: () -> Unit,
     onToggleDarkMode: (Boolean) -> Unit,
-    onSelectFontStyle: (AppFontStyle) -> Unit,
     onSelectFontScale: (Float) -> Unit,
     onToggleStudyNotifs: (Boolean) -> Unit,
     onToggleSpacedRepetitionNotifs: (Boolean) -> Unit,
@@ -277,52 +274,6 @@ fun AppSettingsDialog(
                                         text = "Escolha a família e o tamanho da fonte para seu conforto",
                                         style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     )
-                                }
-                            }
-
-                            // Font Style Selection
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(
-                                    text = "Estilo da Fonte:",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
-                                )
-
-                                AppFontStyle.values().forEach { style ->
-                                    val isSelected = currentFontStyle == style
-                                    Surface(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .clickable {
-                                                onSelectFontStyle(style)
-                                                onFeedbackMessage("Fonte alterada para ${style.label}")
-                                            },
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                                        border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text(
-                                                text = style.label,
-                                                style = MaterialTheme.typography.bodyMedium.copy(
-                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                                                )
-                                            )
-                                            if (isSelected) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Check,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
-                                        }
-                                    }
                                 }
                             }
 

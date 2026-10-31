@@ -5,7 +5,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.example.model.AppFontStyle
 
 val Typography = Typography(
     bodyLarge = TextStyle(
@@ -17,16 +16,29 @@ val Typography = Typography(
     )
 )
 
-fun getAppTypography(fontStyle: AppFontStyle = AppFontStyle.DEFAULT, fontScale: Float = 1.0f): Typography {
-    val family = when (fontStyle) {
-        AppFontStyle.DEFAULT -> FontFamily.Default
-        AppFontStyle.SERIF -> FontFamily.Serif
-        AppFontStyle.MONOSPACE -> FontFamily.Monospace
-    }
-
+fun getAppTypography(fontScale: Float = 1.0f): Typography {
+    val family = FontFamily.Default
     val scale = fontScale.coerceIn(0.85f, 1.4f)
 
     return Typography(
+        displayLarge = TextStyle(
+            fontFamily = family,
+            fontWeight = FontWeight.Bold,
+            fontSize = (57 * scale).sp,
+            lineHeight = (64 * scale).sp
+        ),
+        displayMedium = TextStyle(
+            fontFamily = family,
+            fontWeight = FontWeight.Bold,
+            fontSize = (45 * scale).sp,
+            lineHeight = (52 * scale).sp
+        ),
+        displaySmall = TextStyle(
+            fontFamily = family,
+            fontWeight = FontWeight.Bold,
+            fontSize = (36 * scale).sp,
+            lineHeight = (44 * scale).sp
+        ),
         headlineLarge = TextStyle(
             fontFamily = family,
             fontWeight = FontWeight.Bold,

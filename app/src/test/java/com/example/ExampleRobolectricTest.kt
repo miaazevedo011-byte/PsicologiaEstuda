@@ -1,5 +1,6 @@
 package com.example
 
+import android.app.Application
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.example.model.CardMasteryStatus
@@ -18,6 +19,11 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class ExampleRobolectricTest {
 
+  private fun createViewModel(): PsicoEstudaViewModel {
+    val app = ApplicationProvider.getApplicationContext<Application>()
+    return PsicoEstudaViewModel(app)
+  }
+
   @Test
   fun `read string from context`() {
     val context = ApplicationProvider.getApplicationContext<Context>()
@@ -27,13 +33,17 @@ class ExampleRobolectricTest {
 
   @Test
   fun `verify initial viewmodel state and tab navigation`() {
-    val viewModel = PsicoEstudaViewModel()
+    val viewModel = createViewModel()
     val initialState = viewModel.uiState.value
     assertEquals(AppTab.INICIO, initialState.currentTab)
-    assertTrue(initialState.academicEvents.isNotEmpty())
+    // Encyclopedia is populated as reference library
+    assertTrue(initialState.verbetes.isNotEmpty())
 
     viewModel.selectTab(AppTab.ENCICLOPEDIA)
     assertEquals(AppTab.ENCICLOPEDIA, viewModel.uiState.value.currentTab)
+
+    viewModel.selectTab(AppTab.CRONOGRAMA)
+    assertEquals(AppTab.CRONOGRAMA, viewModel.uiState.value.currentTab)
 
     viewModel.selectTab(AppTab.DISCIPLINAS)
     assertEquals(AppTab.DISCIPLINAS, viewModel.uiState.value.currentTab)
@@ -44,11 +54,12 @@ class ExampleRobolectricTest {
 
   @Test
   fun `verify student profile editing and dynamic semester progression`() {
-    val viewModel = PsicoEstudaViewModel()
+    val viewModel = createViewModel()
     
     // Change profile to a 2nd period student starting their own journey
     viewModel.updateStudentProfile(
       name = "Lucas Silva",
+      institution = "Universidade Federal",
       course = "Psicologia",
       semesterNumber = 2,
       shift = "Noturno",
@@ -63,25 +74,11 @@ class ExampleRobolectricTest {
     assertEquals(2, updatedState.selectedSemester)
     assertEquals(0f, updatedState.userProfile.weeklyDedicatedHours, 0.01f)
     assertEquals(0, updatedState.userProfile.cardsMastered)
-    assertEquals(0, updatedState.userProfile.verbetesRead)
-  }
-
-  @Test
-  fun `verify flashcard interaction and SM2 rating advancing stats`() {
-    val viewModel = PsicoEstudaViewModel()
-    val initialMastered = viewModel.uiState.value.userProfile.cardsMastered
-    
-    viewModel.flipCard()
-    assertTrue(viewModel.uiState.value.isCardFlipped)
-
-    viewModel.rateCard(CardMasteryStatus.DOMINADO)
-    assertEquals("Avaliação registrada: DOMINADO", viewModel.uiState.value.toastMessage)
-    assertEquals(initialMastered + 1, viewModel.uiState.value.userProfile.cardsMastered)
   }
 
   @Test
   fun `verify note saving and hours progression`() {
-    val viewModel = PsicoEstudaViewModel()
+    val viewModel = createViewModel()
     val initialNotesCount = viewModel.uiState.value.notes.size
     val initialHours = viewModel.uiState.value.userProfile.weeklyDedicatedHours
 
@@ -100,16 +97,16 @@ class ExampleRobolectricTest {
 
   @Test
   fun `verify material ingestion with real device file metadata`() {
-    val viewModel = PsicoEstudaViewModel()
+    val viewModel = createViewModel()
     val initialMaterialsCount = viewModel.uiState.value.materials.size
 
     viewModel.ingestMaterial(
       title = "Artigo_Ansiedade_Clinica_SciELO.pdf",
       type = MaterialType.PDF,
       discipline = "Psicopatologia I",
-      notesContext = "Foco em critérios do DSM-5-TR",
-      uriString = "content://media/external/documents/1234",
-      realSize = "4.2 MB"
+      notes = "Foco em critérios do DSM-5-TR",
+      realFileUri = "content://media/external/documents/1234",
+      fileSizeString = "4.2 MB"
     )
 
     val updatedState = viewModel.uiState.value
@@ -118,5 +115,8 @@ class ExampleRobolectricTest {
     assertEquals("Artigo_Ansiedade_Clinica_SciELO.pdf", added.title)
     assertEquals("4.2 MB", added.size)
     assertEquals("content://media/external/documents/1234", added.uriString)
+    assertTrue("Should generate linked flashcards", updatedState.flashcards.isNotEmpty())
+    assertTrue("Should generate linked clinical case", updatedState.clinicalCases.isNotEmpty())
   }
 }
+

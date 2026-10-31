@@ -2,17 +2,20 @@ package com.example.ui.components
 
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.filled.FolderShared
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
@@ -31,9 +34,10 @@ fun PsicoBottomBar(
         val items = listOf(
             Triple(AppTab.INICIO, "Início", Icons.Default.Dashboard),
             Triple(AppTab.ENCICLOPEDIA, "Enciclopédia", Icons.Default.MenuBook),
-            Triple(AppTab.DISCIPLINAS, "Disciplinas", Icons.Default.Psychology),
+            Triple(AppTab.CRONOGRAMA, "Cronograma", Icons.Default.CalendarMonth),
             Triple(AppTab.FLASHCARDS, "Flashcards", Icons.Default.Style),
-            Triple(AppTab.MATERIAIS, "Materiais", Icons.Default.FolderShared)
+            Triple(AppTab.DISCIPLINAS, "Disciplinas", Icons.Default.Psychology),
+            Triple(AppTab.IA_CHAT, "IA & Busca", Icons.Default.SmartToy)
         )
 
         items.forEach { (tab, label, icon) ->

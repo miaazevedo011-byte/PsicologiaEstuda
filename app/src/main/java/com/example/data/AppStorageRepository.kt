@@ -19,10 +19,11 @@ class AppStorageRepository(context: Context) {
         private const val KEY_CLINICAL_CASES = "key_clinical_cases"
         private const val KEY_STUDENT_EMAIL = "key_student_email"
         private const val KEY_STUDY_TRACKS = "key_study_tracks"
+        private const val KEY_DISCIPLINES = "key_disciplines"
+        private const val KEY_DECKS = "key_decks"
         private const val KEY_HAS_INITIALIZED = "key_has_initialized"
         private const val KEY_IS_DARK_MODE = "key_is_dark_mode"
         private const val KEY_THEME_MODE = "key_theme_mode"
-        private const val KEY_FONT_STYLE = "key_font_style"
         private const val KEY_FONT_SCALE = "key_font_scale"
         private const val KEY_NOTIF_STUDY = "key_notif_study"
         private const val KEY_NOTIF_SPACED = "key_notif_spaced"
@@ -57,15 +58,6 @@ class AppStorageRepository(context: Context) {
     fun getThemeMode(): AppThemeMode {
         val name = prefs.getString(KEY_THEME_MODE, AppThemeMode.LIGHT.name) ?: AppThemeMode.LIGHT.name
         return try { AppThemeMode.valueOf(name) } catch (e: Exception) { AppThemeMode.LIGHT }
-    }
-
-    fun saveFontStyle(style: AppFontStyle) {
-        prefs.edit().putString(KEY_FONT_STYLE, style.name).apply()
-    }
-
-    fun getFontStyle(): AppFontStyle {
-        val name = prefs.getString(KEY_FONT_STYLE, AppFontStyle.DEFAULT.name) ?: AppFontStyle.DEFAULT.name
-        return try { AppFontStyle.valueOf(name) } catch (e: Exception) { AppFontStyle.DEFAULT }
     }
 
     fun saveFontScale(scale: Float) {
@@ -478,6 +470,123 @@ class AppStorageRepository(context: Context) {
                         tag = obj.getString("tag"),
                         colorType = obj.optString("colorType", "primary"),
                         isSuspended = obj.optBoolean("isSuspended", false)
+                    )
+                )
+            }
+            list
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // --- Disciplines ---
+    fun saveDisciplines(disciplines: List<Discipline>) {
+        val array = JSONArray()
+        for (d in disciplines) {
+            val obj = JSONObject().apply {
+                put("id", d.id)
+                put("name", d.name)
+                put("code", d.code)
+                put("professor", d.professor)
+                put("progressPercent", d.progressPercent)
+                put("currentModule", d.currentModule)
+                put("totalModules", d.totalModules)
+                put("syllabusSummary", d.syllabusSummary)
+                put("materialsCount", d.materialsCount)
+                put("flashcardsCount", d.flashcardsCount)
+                put("audioDurationMin", d.audioDurationMin)
+                put("semester", d.semester)
+                put("isCompleted", d.isCompleted)
+
+                val objArray = JSONArray()
+                for (lo in d.learningObjectives) {
+                    val loObj = JSONObject().apply {
+                        put("text", lo.first)
+                        put("completed", lo.second)
+                    }
+                    objArray.put(loObj)
+                }
+                put("learningObjectives", objArray)
+            }
+            array.put(obj)
+        }
+        prefs.edit().putString(KEY_DISCIPLINES, array.toString()).apply()
+    }
+
+    fun loadDisciplines(): List<Discipline>? {
+        val jsonStr = prefs.getString(KEY_DISCIPLINES, null) ?: return null
+        return try {
+            val array = JSONArray(jsonStr)
+            val list = mutableListOf<Discipline>()
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                val loArray = obj.optJSONArray("learningObjectives")
+                val loList = mutableListOf<Pair<String, Boolean>>()
+                if (loArray != null) {
+                    for (j in 0 until loArray.length()) {
+                        val loObj = loArray.getJSONObject(j)
+                        loList.add(loObj.getString("text") to loObj.optBoolean("completed", false))
+                    }
+                }
+                list.add(
+                    Discipline(
+                        id = obj.getString("id"),
+                        name = obj.getString("name"),
+                        code = obj.getString("code"),
+                        professor = obj.getString("professor"),
+                        progressPercent = obj.optInt("progressPercent", 0),
+                        currentModule = obj.optInt("currentModule", 1),
+                        totalModules = obj.optInt("totalModules", 4),
+                        syllabusSummary = obj.getString("syllabusSummary"),
+                        learningObjectives = loList,
+                        materialsCount = obj.optInt("materialsCount", 0),
+                        flashcardsCount = obj.optInt("flashcardsCount", 0),
+                        audioDurationMin = obj.optInt("audioDurationMin", 0),
+                        semester = obj.optInt("semester", 1),
+                        isCompleted = obj.optBoolean("isCompleted", false)
+                    )
+                )
+            }
+            list
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // --- Decks ---
+    fun saveDecks(decks: List<Deck>) {
+        val array = JSONArray()
+        for (d in decks) {
+            val obj = JSONObject().apply {
+                put("id", d.id)
+                put("title", d.title)
+                put("category", d.category)
+                put("totalCards", d.totalCards)
+                put("dailyGoal", d.dailyGoal)
+                put("masteredCount", d.masteredCount)
+                put("isCurrent", d.isCurrent)
+            }
+            array.put(obj)
+        }
+        prefs.edit().putString(KEY_DECKS, array.toString()).apply()
+    }
+
+    fun loadDecks(): List<Deck>? {
+        val jsonStr = prefs.getString(KEY_DECKS, null) ?: return null
+        return try {
+            val array = JSONArray(jsonStr)
+            val list = mutableListOf<Deck>()
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                list.add(
+                    Deck(
+                        id = obj.getString("id"),
+                        title = obj.getString("title"),
+                        category = obj.getString("category"),
+                        totalCards = obj.optInt("totalCards", 0),
+                        dailyGoal = obj.optInt("dailyGoal", 5),
+                        masteredCount = obj.optInt("masteredCount", 0),
+                        isCurrent = obj.optBoolean("isCurrent", false)
                     )
                 )
             }

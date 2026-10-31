@@ -19,11 +19,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.CardMasteryStatus
 import com.example.model.Deck
 import com.example.model.Flashcard
+import com.example.model.StudyMaterial
 import com.example.ui.theme.*
 import com.example.viewmodel.PsicoUiState
 
@@ -39,10 +41,13 @@ fun FlashcardsScreen(
     onOpenAddMaterial: () -> Unit,
     onOpenAllDecks: () -> Unit = {},
     onPlayAudioReading: () -> Unit,
-    onGenerateFromCustomText: (String, String) -> Unit = { _, _ -> }
+    onGenerateFromCustomText: (String, String) -> Unit = { _, _ -> },
+    onOpenClinicalCases: () -> Unit = {},
+    onGenerateFromMaterial: (StudyMaterial) -> Unit = {}
 ) {
     var quickPromptText by remember { mutableStateOf("") }
     var isCustomTextDialogOpen by remember { mutableStateOf(false) }
+    var isMaterialPickerOpen by remember { mutableStateOf(false) }
     var customTextTopic by remember { mutableStateOf("") }
     var customTextContent by remember { mutableStateOf("") }
 
@@ -239,6 +244,55 @@ fun FlashcardsScreen(
                             }
                         }
                     }
+                }
+            }
+        }
+
+        // 1.5. Prática Clínica & Casos Clínicos (Transferido para Flashcards)
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenClinicalCases() }
+                    .testTag("clinical_cases_nav_card"),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = SageSecondaryContainer)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(PinePrimary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.MedicalServices, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+                        }
+                        Column {
+                            Text(
+                                text = "Casos Clínicos & Prática DSM-5-TR",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = PinePrimary
+                                )
+                            )
+                            Text(
+                                text = "${uiState.clinicalCases.size} casos interativos com questões e gabarito",
+                                style = MaterialTheme.typography.bodySmall.copy(color = OnSageSecondaryContainer)
+                            )
+                        }
+                    }
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = PinePrimary)
                 }
             }
         }
@@ -726,7 +780,7 @@ fun FlashcardsScreen(
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Button(
                             onClick = onOpenAddMaterial,
@@ -734,9 +788,20 @@ fun FlashcardsScreen(
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = PinePrimary)
                         ) {
-                            Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Enviar PDF", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text("Enviar", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        FilledTonalButton(
+                            onClick = { isMaterialPickerOpen = true },
+                            modifier = Modifier.weight(1f).testTag("pick_material_flashcards_button"),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(containerColor = SurfaceContainerLowest)
+                        ) {
+                            Icon(Icons.Default.FolderOpen, contentDescription = null, tint = PinePrimary, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text("Escolher", fontSize = 10.sp, color = PinePrimary)
                         }
 
                         FilledTonalButton(
@@ -745,9 +810,9 @@ fun FlashcardsScreen(
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(containerColor = SurfaceContainerLowest)
                         ) {
-                            Icon(Icons.Default.EditNote, contentDescription = null, tint = PinePrimary, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Criar com Texto", fontSize = 11.sp, color = PinePrimary)
+                            Icon(Icons.Default.EditNote, contentDescription = null, tint = PinePrimary, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text("Digitar", fontSize = 10.sp, color = PinePrimary)
                         }
                     }
 
@@ -907,6 +972,160 @@ fun FlashcardsScreen(
                         Icon(Icons.Default.Psychology, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Gerar Perguntas & Respostas com IA", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+
+    // Modal: Escolher Arquivo Anexado para Gerar Flashcards
+    if (isMaterialPickerOpen) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { isMaterialPickerOpen = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .fillMaxHeight(0.75f)
+                    .clip(RoundedCornerShape(24.dp))
+                    .testTag("material_picker_dialog"),
+                color = SurfaceContainerLowest,
+                shadowElevation = 8.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(PinePrimaryContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.FolderShared, contentDescription = null, tint = PinePrimary)
+                            }
+                            Column {
+                                Text(
+                                    text = "Escolher Arquivo Anexado",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = PinePrimary
+                                    )
+                                )
+                                Text(
+                                    text = "Selecione um arquivo para gerar flashcards automáticos",
+                                    style = MaterialTheme.typography.labelSmall.copy(color = SageSecondary)
+                                )
+                            }
+                        }
+                        IconButton(onClick = { isMaterialPickerOpen = false }) {
+                            Icon(Icons.Default.Close, contentDescription = "Fechar")
+                        }
+                    }
+
+                    HorizontalDivider(color = OutlineVariant)
+
+                    if (uiState.materials.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(48.dp), tint = SageSecondary)
+                                Text("Nenhum arquivo anexado ainda.", style = MaterialTheme.typography.bodyMedium.copy(color = SageSecondary))
+                                Button(
+                                    onClick = {
+                                        isMaterialPickerOpen = false
+                                        onOpenAddMaterial()
+                                    },
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text("Enviar Arquivo Agora")
+                                }
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(uiState.materials) { mat ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            isMaterialPickerOpen = false
+                                            onGenerateFromMaterial(mat)
+                                        },
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = CardDefaults.cardColors(containerColor = SurfaceContainerLow)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(
+                                                imageVector = when(mat.type) {
+                                                    com.example.model.MaterialType.PDF -> Icons.Default.PictureAsPdf
+                                                    com.example.model.MaterialType.IMAGEM -> Icons.Default.Image
+                                                    else -> Icons.Default.Description
+                                                },
+                                                contentDescription = null,
+                                                tint = PinePrimary
+                                            )
+                                            Column {
+                                                Text(
+                                                    text = mat.title,
+                                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = PinePrimary),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Text(
+                                                    text = "${mat.linkedDiscipline} • ${mat.size}",
+                                                    style = MaterialTheme.typography.labelSmall.copy(color = SageSecondary)
+                                                )
+                                            }
+                                        }
+                                        Button(
+                                            onClick = {
+                                                isMaterialPickerOpen = false
+                                                onGenerateFromMaterial(mat)
+                                            },
+                                            shape = RoundedCornerShape(10.dp),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                            modifier = Modifier.height(32.dp)
+                                        ) {
+                                            Text("Gerar", fontSize = 11.sp)
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
