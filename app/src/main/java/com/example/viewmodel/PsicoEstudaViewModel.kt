@@ -27,8 +27,7 @@ enum class AppTab(val label: String, val route: String) {
     CRONOGRAMA("Cronograma", "cronograma"),
     FLASHCARDS("Flashcards", "flashcards"),
     DISCIPLINAS("Disciplinas", "disciplinas"),
-    MATERIAIS("Materiais", "materiais"),
-    IA_CHAT("Assistente IA", "ia_chat")
+    MATERIAIS("Materiais", "materiais")
 }
 
 enum class EncyclopediaSubTab {
@@ -1295,7 +1294,7 @@ class PsicoEstudaViewModel(application: Application) : AndroidViewModel(applicat
             com.google.firebase.FirebaseApp.initializeApp(context)
         }
         val model = Firebase.ai.generativeModel(
-            modelName = "gemini-3.8-flash",
+            modelName = "gemini-2.5-flash",
             systemInstruction = content {
                 text("""
                     Você é o PsicoEstuda AI Assistente, mentor acadêmico especialista em Psicologia, Neurociências, Psicopatologia (DSM-5-TR, CID-11) e formulação clínica.

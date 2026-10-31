@@ -178,7 +178,6 @@ fun PsicoEstudaApp(viewModel: PsicoEstudaViewModel) {
                     AppTab.DISCIPLINAS -> "Disciplinas"
                     AppTab.FLASHCARDS -> "Flashcards"
                     AppTab.MATERIAIS -> "Biblioteca & Materiais"
-                    AppTab.IA_CHAT -> "Assistente IA"
                 },
                 studentName = uiState.userProfile.name,
                 semesterText = uiState.userProfile.semester,
@@ -227,10 +226,11 @@ fun PsicoEstudaApp(viewModel: PsicoEstudaViewModel) {
                     isSpeaking = isSpeaking,
                     onSelectSubTab = { subTab -> viewModel.selectEncyclopediaSubTab(subTab) },
                     onPlayVerbeteAudio = { verbete ->
+                        val microPillsText = verbete.microPills.joinToString(". ") { "${it.first}: ${it.second}" }
                         speechManager.togglePlayPause(
                             id = verbete.id,
                             title = verbete.title,
-                            text = "Artigo: ${verbete.title}. Autores: ${verbete.authors}. Escola: ${verbete.school}. Resumo: ${verbete.summary}"
+                            text = "Artigo da Enciclopédia: ${verbete.title}. Escola teórica: ${verbete.school}. Autores: ${verbete.authors}. Resumo conceitual: ${verbete.summary}. Pílulas de Conhecimento: $microPillsText"
                         )
                     },
                     onCreateNoteForVerbete = { verbete ->
@@ -318,21 +318,16 @@ fun PsicoEstudaApp(viewModel: PsicoEstudaViewModel) {
                         speechManager.togglePlayPause(
                             id = note.id,
                             title = note.title,
-                            text = "Anotação de Estudo: ${note.title}. Disciplina: ${note.discipline}. Tópico: ${note.linkedTopic}. ${note.content}"
+                            text = "Anotação de Estudo: ${note.title}. Disciplina: ${note.discipline}. Tópico: ${note.linkedTopic}. Tags: ${note.tags.joinToString(", ")}. Conteúdo completo: ${note.content}"
                         )
                     },
                     onPlayMaterialAudio = { mat ->
                         speechManager.togglePlayPause(
                             id = mat.id,
                             title = mat.title,
-                            text = "Material de Estudo: ${mat.title}. Disciplina: ${mat.linkedDiscipline}. Resumo: ${mat.aiSummary}"
+                            text = "Material de Estudo: ${mat.title}. Disciplina: ${mat.linkedDiscipline}. Tipo: ${mat.type}. Resumo Inteligente e Conteúdo: ${mat.aiSummary}"
                         )
                     }
-                )
-
-                AppTab.IA_CHAT -> AiChatScreen(
-                    uiState = uiState,
-                    onSendMessage = { prompt -> viewModel.sendAiMessage(prompt) }
                 )
             }
 

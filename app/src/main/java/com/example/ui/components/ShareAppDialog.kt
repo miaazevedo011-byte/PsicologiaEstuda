@@ -5,7 +5,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -38,33 +37,23 @@ fun ShareAppDialog(
     if (!isOpen) return
 
     val context = LocalContext.current
-    var selectedTarget by remember { mutableStateOf("web_ios") } // "web_ios" or "android_apk"
-
-    // App URLs
-    val webIosUrl = "https://ais-pre-hqwu75bcs3egwem7l7aqns-607091693762.us-east1.run.app"
-    val androidDownloadUrl = "https://ais-pre-hqwu75bcs3egwem7l7aqns-607091693762.us-east1.run.app"
-
-    val currentUrl = if (selectedTarget == "web_ios") webIosUrl else androidDownloadUrl
+    val webAppUrl = "https://ais-pre-hqwu75bcs3egwem7l7aqns-607091693762.us-east1.run.app"
 
     fun copyToClipboard(text: String, label: String) {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newPlainText(label, text)
         clipboard.setPrimaryClip(clip)
-        onCopied("Link copiado para a área de transferência!")
+        onCopied("Link web copiado para a área de transferência!")
     }
 
     fun shareViaSystem() {
         val shareMessage = buildString {
-            append("🎓 PsicoEstuda AI — Aplicativo de Estudos para Estudantes de Psicologia\n\n")
-            if (selectedTarget == "web_ios") {
-                append("📱 Versão Web (iPhone / iPad / iOS & Qualquer Dispositivo):\n")
-                append("$webIosUrl\n\n")
-                append("👉 Dica para iOS: Abra no Safari, toque no ícone de Compartilhar e selecione 'Adicionar à Tela de Início' para usar como aplicativo nativo!\n")
-            } else {
-                append("🤖 Download para Android (Instale no seu aparelho):\n")
-                append("$androidDownloadUrl\n")
-            }
-            append("\nContém: Enciclopédia, Grade Curricular, Casos Clínicos, Flashcards, Biblioteca e Podcasts integrados!")
+            append("🎓 PsicoEstuda AI — Plataforma Web de Estudos para Estudantes de Psicologia\n\n")
+            append("🌐 Acesse pelo navegador em qualquer celular, tablet ou computador:\n")
+            append("$webAppUrl\n\n")
+            append("📱 Dica para iOS (iPhone/iPad): Abra no Safari, toque no ícone de Compartilhar e selecione 'Adicionar à Tela de Início' para usar em tela cheia!\n")
+            append("🤖 Dica para Android: Acesse pelo Chrome, toque nos três pontos e selecione 'Adicionar à tela inicial' ou 'Instalar aplicativo'.\n\n")
+            append("Contém: Enciclopédia, Grade Curricular, Casos Clínicos, Flashcards, Biblioteca e Leitores de Áudio integrados!")
         }
 
         val sendIntent = Intent().apply {
@@ -72,7 +61,7 @@ fun ShareAppDialog(
             putExtra(Intent.EXTRA_TEXT, shareMessage)
             type = "text/plain"
         }
-        val shareIntent = Intent.createChooser(sendIntent, "Compartilhar PsicoEstuda AI com colegas")
+        val shareIntent = Intent.createChooser(sendIntent, "Compartilhar PsicoEstuda AI via Web")
         context.startActivity(shareIntent)
     }
 
@@ -124,7 +113,7 @@ fun ShareAppDialog(
                                 )
                             )
                             Text(
-                                text = "Gere o link de acesso para outros estudantes",
+                                text = "Compartilhe o link web com colegas de turma",
                                 style = MaterialTheme.typography.labelSmall.copy(color = SageSecondary)
                             )
                         }
@@ -134,107 +123,14 @@ fun ShareAppDialog(
                     }
                 }
 
-                // Platform Selector (iOS / Web vs Android APK)
+                // Description
                 Text(
-                    text = "Escolha o formato do link para compartilhar:",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = TextOnSurface
+                    text = "O PsicoEstuda AI funciona totalmente na web. Qualquer estudante pode acessar instantaneamente pelo navegador ou instalar como aplicativo na tela inicial do celular (Android e iOS).",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = TextOnSurfaceVariant,
+                        lineHeight = 18.sp
                     )
                 )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Option 1: Web / iOS
-                    Card(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { selectedTarget = "web_ios" }
-                            .testTag("share_option_web_ios"),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (selectedTarget == "web_ios") PinePrimaryContainer else SurfaceContainerLow
-                        ),
-                        border = if (selectedTarget == "web_ios") androidx.compose.foundation.BorderStroke(2.dp, PinePrimary) else null
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PhoneIphone,
-                                    contentDescription = null,
-                                    tint = if (selectedTarget == "web_ios") Color.White else PinePrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Text(
-                                    text = "Versão Web / iOS",
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (selectedTarget == "web_ios") Color.White else PinePrimary
-                                    )
-                                )
-                            }
-                            Text(
-                                text = "Para iPhone, iPad e Safari (funciona sem baixar APK)",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = if (selectedTarget == "web_ios") PinePrimaryFixed else TextOnSurfaceVariant,
-                                    fontSize = 10.sp
-                                )
-                            )
-                        }
-                    }
-
-                    // Option 2: Android Device Download
-                    Card(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { selectedTarget = "android_apk" }
-                            .testTag("share_option_android_apk"),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (selectedTarget == "android_apk") PinePrimaryContainer else SurfaceContainerLow
-                        ),
-                        border = if (selectedTarget == "android_apk") androidx.compose.foundation.BorderStroke(2.dp, PinePrimary) else null
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Android,
-                                    contentDescription = null,
-                                    tint = if (selectedTarget == "android_apk") Color.White else PinePrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Text(
-                                    text = "Android APK",
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (selectedTarget == "android_apk") Color.White else PinePrimary
-                                    )
-                                )
-                            }
-                            Text(
-                                text = "Para baixar e instalar no próprio aparelho Android",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = if (selectedTarget == "android_apk") PinePrimaryFixed else TextOnSurfaceVariant,
-                                    fontSize = 10.sp
-                                )
-                            )
-                        }
-                    }
-                }
 
                 // Link Display Card
                 Surface(
@@ -253,14 +149,14 @@ fun ShareAppDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = if (selectedTarget == "web_ios") "Link da Versão Web (Plataforma iOS):" else "Link de Download do App (Android):",
+                                text = "Link de Acesso Web:",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = SageSecondary,
                                     fontWeight = FontWeight.Bold
                                 )
                             )
                             IconButton(
-                                onClick = { copyToClipboard(currentUrl, "Link PsicoEstuda AI") },
+                                onClick = { copyToClipboard(webAppUrl, "Link PsicoEstuda AI") },
                                 modifier = Modifier.size(28.dp)
                             ) {
                                 Icon(Icons.Default.ContentCopy, contentDescription = "Copiar Link", tint = PinePrimary, modifier = Modifier.size(16.dp))
@@ -268,7 +164,7 @@ fun ShareAppDialog(
                         }
 
                         Text(
-                            text = currentUrl,
+                            text = webAppUrl,
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = PinePrimary,
                                 fontWeight = FontWeight.SemiBold,
@@ -278,33 +174,31 @@ fun ShareAppDialog(
                     }
                 }
 
-                // Instructional Guide for iOS users
-                if (selectedTarget == "web_ios") {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = SageSecondaryContainer.copy(alpha = 0.6f),
-                        modifier = Modifier.fillMaxWidth()
+                // Instructional Guide for Web / PWA installation
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = SageSecondaryContainer.copy(alpha = 0.6f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text(
-                                text = "💡 Instruções para usuários de iPhone / iPad (iOS):",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = PinePrimary
-                                )
+                        Text(
+                            text = "💡 Como estudar e instalar pelo celular:",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = PinePrimary
                             )
-                            Text(
-                                text = "1. Abra o link gerado acima no navegador Safari do iPhone.\n2. Toque no botão 'Compartilhar' (ícone quadrado com seta).\n3. Selecione 'Adicionar à Tela de Início'.\n4. O PsicoEstuda AI funcionará em tela cheia como um app nativo no iOS!",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = PinePrimaryDark,
-                                    fontSize = 11.sp,
-                                    lineHeight = 16.sp
-                                )
+                        )
+                        Text(
+                            text = "• Android (Google Chrome): Abra o link, toque no menu (três pontos) e selecione 'Adicionar à tela inicial'.\n• iOS (Safari): Abra o link, toque no botão 'Compartilhar' e selecione 'Adicionar à Tela de Início'.\n• Computador: Acesse diretamente por qualquer navegador web com todas as funções ativas.",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = PinePrimaryDark,
+                                fontSize = 11.sp,
+                                lineHeight = 16.sp
                             )
-                        }
+                        )
                     }
                 }
 
@@ -314,7 +208,7 @@ fun ShareAppDialog(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     OutlinedButton(
-                        onClick = { copyToClipboard(currentUrl, "Link PsicoEstuda AI") },
+                        onClick = { copyToClipboard(webAppUrl, "Link PsicoEstuda AI") },
                         modifier = Modifier
                             .weight(1f)
                             .testTag("copy_link_button"),

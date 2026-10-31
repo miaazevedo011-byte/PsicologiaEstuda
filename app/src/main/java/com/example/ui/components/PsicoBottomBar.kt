@@ -36,8 +36,7 @@ fun PsicoBottomBar(
             Triple(AppTab.ENCICLOPEDIA, "Enciclopédia", Icons.Default.MenuBook),
             Triple(AppTab.CRONOGRAMA, "Cronograma", Icons.Default.CalendarMonth),
             Triple(AppTab.FLASHCARDS, "Flashcards", Icons.Default.Style),
-            Triple(AppTab.DISCIPLINAS, "Disciplinas", Icons.Default.Psychology),
-            Triple(AppTab.IA_CHAT, "IA & Busca", Icons.Default.SmartToy)
+            Triple(AppTab.DISCIPLINAS, "Disciplinas", Icons.Default.Psychology)
         )
 
         items.forEach { (tab, label, icon) ->
